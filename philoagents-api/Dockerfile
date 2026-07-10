@@ -15,3 +15,7 @@ COPY src/philoagents philoagents/
 COPY tools tools/
 
 CMD ["/app/.venv/bin/fastapi", "run", "philoagents/infrastructure/api.py", "--port", "8000", "--host", "0.0.0.0"]
+
+ENV UV_INDEX_URL=https://pypi.org/simple
+# ENV UV_INDEX_URL=https://mirror-pypi.runflare.com/simple/
+# ENV UV_HTTP_TIMEOUT=300

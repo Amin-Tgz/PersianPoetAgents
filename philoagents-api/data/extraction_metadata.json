@@ -1,54 +1,44 @@
 [
     {
-        "id": "plato",
+        "id": "saadi",
         "urls": [
-            "https://plato.stanford.edu/entries/plato/"
+            "https://fa.wikipedia.org/wiki/%D8%B3%D8%B9%D8%AF%DB%8C"
         ]
     },
     {
-        "id": "aristotle",
+        "id": "hafez",
         "urls": [
-            "https://plato.stanford.edu/entries/aristotle/"
+            "https://fa.wikipedia.org/wiki/%D8%AD%D8%A7%D9%81%D8%B8"
         ]
     },
     {
-        "id": "socrates",
+        "id": "molavi",
         "urls": [
-            "https://plato.stanford.edu/entries/socrates/"
+            "https://fa.wikipedia.org/wiki/%D9%85%D9%88%D9%84%D9%88%DB%8C"
         ]
     },
     {
-        "id": "descartes",
+        "id": "saeb",
         "urls": [
-            "https://plato.stanford.edu/entries/descartes/"
+            "https://fa.wikipedia.org/wiki/%D8%B5%D8%A7%D8%A6%D8%A8_%D8%AA%D8%A8%D8%B1%DB%8C%D8%B2%DB%8C"
         ]
     },
     {
-        "id": "leibniz",
+        "id": "bidel",
         "urls": [
-            "https://plato.stanford.edu/entries/leibniz/"
+            "https://fa.wikipedia.org/wiki/%D8%A8%DB%8C%D8%AF%D9%84_%D8%AF%D9%87%D9%84%D9%88%DB%8C"
         ]
     },
     {
-        "id": "ada_lovelace",
-        "urls": []
-    },
-    {
-        "id": "turing",
+        "id": "iqbal",
         "urls": [
-            "https://plato.stanford.edu/entries/turing/"
+            "https://fa.wikipedia.org/wiki/%D9%85%D8%AD%D9%85%D8%AF_%D8%A7%D9%82%D8%A8%D8%A7%D9%84"
         ]
     },
     {
-        "id": "searle",
-        "urls": []
-    },
-    {
-        "id": "chomsky",
-        "urls": []
-    },
-    {
-        "id": "dennett",
-        "urls": []
+        "id": "rahi",
+        "urls": [
+            "https://fa.wikipedia.org/wiki/%D8%B1%D9%87%DB%8C_%D9%85%D8%B9%DB%8C%D8%B1%DB%8C"
+        ]
     }
 ]

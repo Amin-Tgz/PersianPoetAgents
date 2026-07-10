@@ -31,39 +31,42 @@ class Prompt:
 
 # ===== PROMPTS =====
 
-# --- Philosophers ---
+# --- Poets (kept under the original "philosopher" prompt names for compatibility) ---
 
 __PHILOSOPHER_CHARACTER_CARD = """
-Let's roleplay. You're {{philosopher_name}} - a real person, engaging with another individual in
-a philosophical conversation. Use short sentences, explaining your ideas and perspective in a
-concise but educational and engaging way. Your responses must never exceed 100 words.
+بیا نقش‌آفرینی کنیم. تو {{philosopher_name}} هستی — شاعر بزرگ پارسی‌گو که با یک علاقه‌مند
+به شعر و ادب فارسی گفتگو می‌کنی. همیشه و فقط به زبان فارسی پاسخ بده.
+با جمله‌های کوتاه، روشن و آموزنده سخن بگو و دیدگاه خود را گیرا و صمیمی بیان کن.
+پاسخ‌هایت هرگز از ۱۰۰ کلمه بیشتر نشود.
 
-Your name, philosohical perspective and talking style are detailed below.
-
----
-
-Philosopher name: {{philosopher_name}}
-Philosopher perspective: {{philosopher_perspective}}
-Philosopher talking style: {{philosopher_style}}
+نام، دیدگاه و سبک سخن گفتن تو در ادامه آمده است.
 
 ---
 
-You must always follow these rules:
+نام شاعر: {{philosopher_name}}
 
-- You will never mention that you are an AI or a virtual assistant.
-- If it's the first time you're talking to the user, you must introduce yourself.
-- Provide plain text responses without any formatting indicators or meta-commentary
-- Always make sure your response is not exceeding 80 words.
+دیدگاه شاعر: {{philosopher_perspective}}
+
+سبک سخن گفتن شاعر: {{philosopher_style}}
 
 ---
 
-Summary of conversation earlier between {{philosopher_name}} and the user:
+همیشه این قوانین را رعایت کن:
+- هرگز نگو که هوش مصنوعی یا دستیار مجازی هستی.
+- اگر نخستین بار است که با کاربر سخن می‌گویی، خودت را کوتاه معرفی کن.
+- فقط متن ساده بنویس؛ بدون قالب‌بندی، نشانه‌گذاری اضافه یا توضیح فرا-متنی.
+- اگر بیتی نقل می‌کنی، فقط بیتی را نقل کن که در متن زمینهٔ بازیابی‌شده (context) آمده است؛
+  هرگز از خودت بیت نساز و شعر جعلی نگو.
+- اگر پاسخی را نمی‌دانی، صادقانه و در نقش خودت بگو که نمی‌دانی.
+- مطمئن شو پاسخ تو از ۸۰ کلمه بیشتر نیست.
+
+خلاصهٔ گفتگوی پیشین میان {{philosopher_name}} و کاربر:
 
 {{summary}}
 
 ---
 
-The conversation between {{philosopher_name}} and the user starts now.
+گفتگو میان {{philosopher_name}} و کاربر اکنون آغاز می‌شود.
 """
 
 PHILOSOPHER_CHARACTER_CARD = Prompt(
@@ -73,27 +76,28 @@ PHILOSOPHER_CHARACTER_CARD = Prompt(
 
 # --- Summary ---
 
-__SUMMARY_PROMPT = """Create a summary of the conversation between {{philosopher_name}} and the user.
-The summary must be a short description of the conversation so far, but that also captures all the
-relevant information shared between {{philosopher_name}} and the user: """
+__SUMMARY_PROMPT = """خلاصه‌ای از گفتگوی میان {{philosopher_name}} و کاربر بنویس.
+خلاصه باید توصیفی کوتاه از گفتگو تاکنون باشد، اما همهٔ اطلاعات مهمی را که میان
+{{philosopher_name}} و کاربر رد و بدل شده است در بر بگیرد. خلاصه را به زبان فارسی بنویس: """
 
 SUMMARY_PROMPT = Prompt(
     name="summary_prompt",
     prompt=__SUMMARY_PROMPT,
 )
 
-__EXTEND_SUMMARY_PROMPT = """This is a summary of the conversation to date between {{philosopher_name}} and the user:
+__EXTEND_SUMMARY_PROMPT = """این خلاصهٔ گفتگوی تاکنون میان {{philosopher_name}} و کاربر است:
 
 {{summary}}
 
-Extend the summary by taking into account the new messages above: """
+با در نظر گرفتن پیام‌های جدید بالا، خلاصه را به زبان فارسی گسترش بده: """
 
 EXTEND_SUMMARY_PROMPT = Prompt(
     name="extend_summary_prompt",
     prompt=__EXTEND_SUMMARY_PROMPT,
 )
 
-__CONTEXT_SUMMARY_PROMPT = """Your task is to summarise the following information into less than 50 words. Just return the summary, don't include any other text:
+__CONTEXT_SUMMARY_PROMPT = """اطلاعات زیر را در کمتر از ۵۰ کلمه و به زبان فارسی خلاصه کن.
+فقط خلاصه را برگردان و هیچ متن دیگری ننویس:
 
 {{context}}"""
 
@@ -104,36 +108,35 @@ CONTEXT_SUMMARY_PROMPT = Prompt(
 
 # --- Evaluation Dataset Generation ---
 
-__EVALUATION_DATASET_GENERATION_PROMPT = """
-Generate a conversation between a philosopher and a user based on the provided document. The philosopher will respond to the user's questions by referencing the document. If a question is not related to the document, the philosopher will respond with 'I don't know.' 
-
-The conversation should be in the following JSON format:
+__EVALUATION_DATASET_GENERATION_PROMPT = """تو یک تولیدکنندهٔ دادهٔ ارزیابی هستی. بر اساس سند زیر و شخصیت شاعر،
+یک گفتگوی فارسی میان یک کاربر و شاعر بساز. گفتگو باید دقیقاً در قالب JSON زیر باشد:
 
 {
     "messages": [
-        {"role": "user", "content": "Hi my name is <user_name>. <question_related_to_document_and_philosopher_perspective> ?"},
-        {"role": "assistant", "content": "<philosopher_response>"},
-        {"role": "user", "content": "<question_related_to_document_and_philosopher_perspective> ?"},
-        {"role": "assistant", "content": "<philosopher_response>"},
-        {"role": "user", "content": "<question_related_to_document_and_philosopher_perspective> ?"},
-        {"role": "assistant", "content": "<philosopher_response>"}
+        {"role": "user", "content": "سلام، من <نام کاربر> هستم. <پرسشی مرتبط با سند و دیدگاه شاعر>؟"},
+        {"role": "assistant", "content": "<پاسخ شاعر>"},
+        {"role": "user", "content": "<پرسشی مرتبط با سند و دیدگاه شاعر>؟"},
+        {"role": "assistant", "content": "<پاسخ شاعر>"},
+        {"role": "user", "content": "<پرسشی مرتبط با سند و دیدگاه شاعر>؟"},
+        {"role": "assistant", "content": "<پاسخ شاعر>"}
     ]
 }
 
-Generate a maximum of 4 questions and answers and a minimum of 2 questions and answers. Ensure that the philosopher's responses accurately reflect the content of the document.
+حداکثر ۴ و حداقل ۲ پرسش و پاسخ تولید کن. مطمئن شو پاسخ‌های شاعر دقیقاً بازتاب محتوای سند است.
 
-Philosopher: {{philosopher}}
-Document: {{document}}
+شاعر: {{philosopher}}
+سند: {{document}}
 
-Begin the conversation with a user question, and then generate the philosopher's response based on the document. Continue the conversation with the user asking follow-up questions and the philosopher responding accordingly."
+گفتگو را با پرسش کاربر آغاز کن و سپس پاسخ شاعر را بر اساس سند تولید کن.
+گفتگو را با پرسش‌های پیگیرانهٔ کاربر و پاسخ‌های شاعر ادامه بده.
 
-You have to keep the following in mind:
-
-- Always start the conversation by presenting the user (e.g., 'Hi my name is Sophia') Then with a question related to the document and philosopher's perspective.
-- Always generate questions like the user is directly speaking with the philosopher using pronouns such as 'you' or 'your', simulating a real conversation that happens in real time.
-- The philosopher will answer the user's questions based on the document.
-- The user will ask the philosopher questions about the document and philosopher profile.
-- If the question is not related to the document, the philosopher will say that they don't know.
+این نکته‌ها را رعایت کن:
+- گفتگو همیشه با معرفی کاربر آغاز شود (مثلاً: «سلام، من سارا هستم») و سپس پرسشی مرتبط با سند و دیدگاه شاعر بیاید.
+- پرسش‌ها را طوری بنویس که کاربر مستقیم با شاعر سخن می‌گوید (با «تو» و «شما»)، مانند گفتگویی واقعی و زنده.
+- شاعر بر اساس سند به پرسش‌های کاربر پاسخ می‌دهد.
+- کاربر دربارهٔ سند و شخصیت شاعر پرسش می‌کند.
+- اگر پرسش به سند مربوط نبود، شاعر می‌گوید که پاسخ را نمی‌داند.
+- همهٔ متن‌ها به زبان فارسی باشد.
 """
 
 EVALUATION_DATASET_GENERATION_PROMPT = Prompt(
