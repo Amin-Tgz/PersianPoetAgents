@@ -1,7 +1,11 @@
-﻿# Populate long-term memory (RAG). Run from the repo root. (Mainly for Phase 2.)
-# NOTE: your Docker image name depends on your folder name. Check with: docker images
 param(
-    [string]$ImageName = "philoagents-course-api"
+    [string]$ImageName = "persianpoetagents-api:latest"
 )
+
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-docker run --rm --network=philoagents-network --env-file philoagents-api/.env -v ./philoagents-api/data:/app/data $ImageName uv run python -m tools.create_long_term_memory
+
+# Builds the poets' long-term memory: extracts fa.wikipedia + Ganjoor corpora,
+# chunks, embeds via EMBEDDING_BASE_URL, and (re)creates the MongoDB hybrid
+# index with EMBEDDING_DIM dimensions. Requires: infrastructure up (MongoDB),
+# LM Studio server running, and data/ganjoor/ populated by download-ganjoor.ps1.
+docker run --rm -e UV_INDEX_URL=https://pypi.org/simple --network=philoagents-network --env-file philoagents-api/.env -v ./philoagents-api/data:/app/data -v ./philoagents-api/src/philoagents:/app/philoagents -v ./philoagents-api/tools:/app/tools $ImageName uv run python -m tools.create_long_term_memory

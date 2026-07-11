@@ -1,7 +1,10 @@
 from langchain_core.documents import Document
 from loguru import logger
 
-from philoagents.application.data import deduplicate_documents, get_extraction_generator
+from philoagents.application.data import (
+    deduplicate_documents,
+    get_extraction_generator,
+)
 from philoagents.application.rag.retrievers import Retriever, get_retriever
 from philoagents.application.rag.splitters import Splitter, get_splitter
 from philoagents.config import settings
@@ -41,7 +44,12 @@ class LongTermMemoryCreator:
         for _, docs in extraction_generator:
             chunked_docs = self.splitter.split_documents(docs)
 
-            chunked_docs = deduplicate_documents(chunked_docs, threshold=0.7)
+            # Threshold is configurable (RAG_DEDUP_THRESHOLD, default 0.9).
+            # Poetry shares vocabulary without being duplicated, so the
+            # upstream hardcoded 0.7 removed most of the poem corpus.
+            chunked_docs = deduplicate_documents(
+                chunked_docs, threshold=settings.RAG_DEDUP_THRESHOLD
+            )
 
             self.retriever.vectorstore.add_documents(chunked_docs)
 

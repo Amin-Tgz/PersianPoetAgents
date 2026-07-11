@@ -1,9 +1,13 @@
+import json
 from typing import Generator
+from urllib.parse import unquote
 
-from langchain_community.document_loaders import WebBaseLoader, WikipediaLoader
+import requests
 from langchain_core.documents import Document
+from loguru import logger
 from tqdm import tqdm
 
+from philoagents.config import settings
 from philoagents.domain.philosopher import Philosopher, PhilosopherExtract
 from philoagents.domain.philosopher_factory import PhilosopherFactory
 
@@ -11,162 +15,177 @@ from philoagents.domain.philosopher_factory import PhilosopherFactory
 def get_extraction_generator(
     philosophers: list[PhilosopherExtract],
 ) -> Generator[tuple[Philosopher, list[Document]], None, None]:
-    """Extract documents for a list of philosophers, yielding one at a time.
+    """Extract documents for a list of poets, yielding one at a time.
 
     Args:
-        philosophers: A list of PhilosopherExtract objects containing philosopher information.
+        philosophers: A list of PhilosopherExtract objects containing poet information.
 
     Yields:
-        tuple[Philosopher, list[Document]]: A tuple containing the philosopher object and a list of
-            documents extracted for that philosopher.
+        tuple[Philosopher, list[Document]]: A tuple containing the poet object and a list of
+            documents extracted for that poet.
     """
 
     progress_bar = tqdm(
         philosophers,
         desc="Extracting docs",
-        unit="philosopher",
+        unit="poet",
         bar_format="{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}",
         ncols=100,
         position=0,
         leave=True,
     )
 
-    philosophers_factory = PhilosopherFactory()
-    for philosopher_extract in progress_bar:
-        philosopher = philosophers_factory.get_philosopher(philosopher_extract.id)
-        progress_bar.set_postfix_str(f"Philosopher: {philosopher.name}")
+    poets_factory = PhilosopherFactory()
+    for poet_extract in progress_bar:
+        poet = poets_factory.get_philosopher(poet_extract.id)
+        progress_bar.set_postfix_str(f"Poet: {poet.name}")
 
-        philosopher_docs = extract(philosopher, philosopher_extract.urls)
+        poet_docs = extract(poet, poet_extract.urls)
 
-        yield (philosopher, philosopher_docs)
+        yield (poet, poet_docs)
 
 
-def extract(philosopher: Philosopher, extract_urls: list[str]) -> list[Document]:
-    """Extract documents for a single philosopher from all sources and deduplicate them.
+def extract(poet: Philosopher, extract_urls: list[str]) -> list[Document]:
+    """Extract documents for a single poet from all sources.
 
     Args:
-        philosopher: Philosopher object containing philosopher information.
-        extract_urls: List of URLs to extract content from.
+        poet: Philosopher object containing poet information.
+        extract_urls: List of URLs to extract content from (fa.wikipedia URLs).
 
     Returns:
-        list[Document]: List of deduplicated documents extracted for the philosopher.
+        list[Document]: List of documents extracted for the poet.
     """
 
     docs = []
 
-    docs.extend(extract_wikipedia(philosopher))
-    docs.extend(extract_stanford_encyclopedia_of_philosophy(philosopher, extract_urls))
+    docs.extend(extract_wikipedia(poet, extract_urls))
+    docs.extend(extract_ganjoor(poet))
 
     return docs
 
 
-def extract_wikipedia(philosopher: Philosopher) -> list[Document]:
-    """Extract documents for a single philosopher from Wikipedia.
-
-    Args:
-        philosopher: Philosopher object containing philosopher information.
-
-    Returns:
-        list[Document]: List of documents extracted from Wikipedia for the philosopher.
-    """
-
-    loader = WikipediaLoader(
-        query=philosopher.name,
-        lang="en",
-        load_max_docs=1,
-        doc_content_chars_max=1000000,
-    )
-    docs = loader.load()
-
-    for doc in docs:
-        doc.metadata["philosopher_id"] = philosopher.id
-        doc.metadata["philosopher_name"] = philosopher.name
-
-    return docs
-
-
-def extract_stanford_encyclopedia_of_philosophy(
-    philosopher: Philosopher, urls: list[str]
+def extract_wikipedia(
+    poet: Philosopher, urls: list[str] | None = None
 ) -> list[Document]:
-    """Extract documents for a single philosopher from Stanford Encyclopedia of Philosophy.
+    """Extract the poet's Persian Wikipedia article.
+
+    If a fa.wikipedia.org URL is present in `urls`, its exact page title is
+    used as the query; otherwise we fall back to searching by the poet's name.
 
     Args:
-        philosopher: Philosopher object containing philosopher information.
-        urls: List of URLs to extract content from.
+        poet: Philosopher object containing poet information.
+        urls: Optional list of URLs from the extraction metadata.
 
     Returns:
-        list[Document]: List of documents extracted from Stanford Encyclopedia for the philosopher.
+        list[Document]: List of documents extracted from Persian Wikipedia.
     """
 
-    def extract_paragraphs_and_headers(soup) -> str:
-        # List of class/id names specific to the Stanford Encyclopedia of Philosophy that we want to exclude.
-        excluded_sections = [
-            "bibliography",
-            "academic-tools",
-            "other-internet-resources",
-            "related-entries",
-            "acknowledgments",
-            "article-copyright",
-            "article-banner",
-            "footer",
-        ]
+    title = poet.name
+    for url in urls or []:
+        if "wikipedia.org/wiki/" in url:
+            title = unquote(url.split("/wiki/")[-1]).replace("_", " ")
+            break
 
-        # Find and remove elements within excluded sections
-        for section_name in excluded_sections:
-            for section in soup.find_all(id=section_name):
-                section.decompose()
-
-            for section in soup.find_all(class_=section_name):
-                section.decompose()
-
-            for section in soup.find_all(
-                lambda tag: tag.has_attr("id") and section_name in tag["id"].lower()
-            ):
-                section.decompose()
-
-            for section in soup.find_all(
-                lambda tag: tag.has_attr("class")
-                and any(section_name in cls.lower() for cls in tag["class"])
-            ):
-                section.decompose()
-
-        # Extract remaining paragraphs and headers
-        content = []
-        for element in soup.find_all(["p", "h1", "h2", "h3", "h4", "h5", "h6"]):
-            content.append(element.get_text())
-
-        return "\n\n".join(content)
-
-    if len(urls) == 0:
+    # NOTE: we call the MediaWiki API directly with a descriptive User-Agent.
+    # The `wikipedia` pip package sends a generic UA that Wikimedia now blocks
+    # (it returns an HTML error page, which crashes with a JSONDecodeError).
+    try:
+        response = requests.get(
+            "https://fa.wikipedia.org/w/api.php",
+            params={
+                "action": "query",
+                "prop": "extracts",
+                "explaintext": 1,
+                "redirects": 1,
+                "format": "json",
+                "titles": title,
+            },
+            headers={
+                "User-Agent": (
+                    "PersianPoetAgents/1.0 "
+                    "(https://github.com/Amin-Tgz/PersianPoetAgents)"
+                )
+            },
+            timeout=60,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except Exception as e:
+        logger.error(f"Wikipedia fetch failed for '{title}' ({poet.id}): {e}")
         return []
 
-    loader = WebBaseLoader(show_progress=False)
-    soups = loader.scrape_all(urls)
+    pages = (payload.get("query") or {}).get("pages") or {}
+
+    docs = []
+    for page in pages.values():
+        text = (page.get("extract") or "").strip()
+        if not text:
+            continue
+        page_title = page.get("title") or title
+        docs.append(
+            Document(
+                page_content=text,
+                metadata={
+                    "source": "https://fa.wikipedia.org/wiki/"
+                    + page_title.replace(" ", "_"),
+                    "title": page_title,
+                    "philosopher_id": poet.id,
+                    "philosopher_name": poet.name,
+                },
+            )
+        )
+
+    if not docs:
+        logger.warning(f"No fa.wikipedia article found for '{title}' ({poet.id})")
+
+    return docs
+
+
+def extract_ganjoor(poet: Philosopher) -> list[Document]:
+    """Load the poet's poems previously downloaded from Ganjoor (گنجور).
+
+    Reads data/ganjoor/<poet_id>.json created by `tools.download_ganjoor`.
+    Each poem becomes one Document so retrieved chunks stay verse-accurate.
+
+    Args:
+        poet: Philosopher object containing poet information.
+
+    Returns:
+        list[Document]: One document per poem, empty if no corpus exists yet.
+    """
+
+    corpus_file = settings.GANJOOR_DATA_DIR / f"{poet.id}.json"
+    if not corpus_file.exists():
+        logger.warning(
+            f"No Ganjoor corpus at {corpus_file}. "
+            f"Run `python -m tools.download_ganjoor` first; skipping poems for {poet.id}."
+        )
+        return []
+
+    with open(corpus_file, "r", encoding="utf-8") as f:
+        poems = json.load(f)
 
     documents = []
-    for url, soup in zip(urls, soups):
-        text = extract_paragraphs_and_headers(soup)
-        metadata = {
-            "source": url,
-            "philosopher_id": philosopher.id,
-            "philosopher_name": philosopher.name,
-        }
+    for poem in poems:
+        text = (poem.get("text") or "").strip()
+        if not text:
+            continue
 
-        if title := soup.find("title"):
-            metadata["title"] = title.get_text().strip(" \n")
+        title = poem.get("title", "")
+        page_content = f"{title}\n\n{text}" if title else text
 
-        documents.append(Document(page_content=text, metadata=metadata))
+        documents.append(
+            Document(
+                page_content=page_content,
+                metadata={
+                    "source": poem.get("url") or "https://ganjoor.net",
+                    "title": title,
+                    "philosopher_id": poet.id,
+                    "philosopher_name": poet.name,
+                },
+            )
+        )
+
+    logger.info(f"Loaded {len(documents)} Ganjoor poems for {poet.id}")
 
     return documents
-
-
-if __name__ == "__main__":
-    aristotle = PhilosopherFactory().get_philosopher("aristotle")
-    docs = extract_stanford_encyclopedia_of_philosophy(
-        aristotle,
-        [
-            "https://plato.stanford.edu/entries/aristotle/",
-            "https://plato.stanford.edu/entries/aristotle/",
-        ],
-    )
-    print(docs)

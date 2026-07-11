@@ -9,12 +9,17 @@ from philoagents.config import settings
 
 
 def deduplicate_documents(
-    documents: List[Document], threshold: float = 0.7
+    documents: List[Document], threshold: float = 0.9
 ) -> List[Document]:
     """Remove duplicate documents from a list based on content similarity.
 
     Uses MinHash algorithm to identify similar documents and removes duplicates
     based on the specified similarity threshold.
+
+    NOTE: for poetry, keep the threshold high (>= 0.9). Classical Persian
+    poems share many 3-word shingles (radif, refrains, meter vocabulary)
+    while being entirely different poems, so a low threshold (e.g. the
+    upstream 0.7) silently removes most of the corpus.
 
     Args:
         documents: List of documents to deduplicate.
@@ -30,10 +35,6 @@ def deduplicate_documents(
 
     duplicates = find_duplicates(documents, threshold)
 
-    logger.info(
-        f"{len(duplicates)} / {len(documents)} documents are duplicates. Removing them."
-    )
-
     indices_to_remove = set()
     for i, j, _ in duplicates:
         # Keep the document with more content
@@ -42,12 +43,18 @@ def deduplicate_documents(
         else:
             indices_to_remove.add(i)
 
+    logger.info(
+        f"Removing {len(indices_to_remove)} of {len(documents)} chunks as duplicates "
+        f"({len(duplicates)} similar pairs at threshold {threshold}). "
+        f"Keeping {len(documents) - len(indices_to_remove)} chunks."
+    )
+
     return [doc for i, doc in enumerate(documents) if i not in indices_to_remove]
 
 
 def find_duplicates(
     documents: List[Document],
-    threshold: float = 0.7,
+    threshold: float = 0.9,
     num_perm: int = int(settings.RAG_CHUNK_SIZE * 0.5),
 ) -> List[Tuple[int, int, float]]:
     """Find duplicate documents using MinHash algorithm.

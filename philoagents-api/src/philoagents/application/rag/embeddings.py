@@ -1,40 +1,45 @@
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_openai import OpenAIEmbeddings
 
-EmbeddingsModel = HuggingFaceEmbeddings
+from philoagents.config import settings
+
+EmbeddingsModel = OpenAIEmbeddings
 
 
 def get_embedding_model(
-    model_id: str,
+    model_id: str | None = None,
     device: str = "cpu",
 ) -> EmbeddingsModel:
-    """Gets an instance of a HuggingFace embedding model.
+    """Gets an embedding model served over any OpenAI-compatible API.
+
+    The provider is controlled by EMBEDDING_BASE_URL + EMBEDDING_API_KEY in
+    .env, so the same code works with LM Studio (local BGE-M3), DeepInfra,
+    Cloudflare Workers AI, AvalAI, or any other OpenAI-compatible endpoint.
 
     Args:
-        model_id (str): The ID/name of the HuggingFace embedding model to use
-        device (str): The compute device to run the model on (e.g. "cpu", "cuda").
-            Defaults to "cpu"
+        model_id: The embedding model id exposed by the provider. Defaults to
+            settings.EMBEDDING_MODEL.
+        device: Kept for backwards compatibility with the original local
+            (HuggingFace) implementation. Unused with API embeddings.
 
     Returns:
-        EmbeddingsModel: A configured HuggingFace embeddings model instance
+        EmbeddingsModel: A configured OpenAI-compatible embeddings client.
     """
-    return get_huggingface_embedding_model(model_id, device)
-
-
-def get_huggingface_embedding_model(
-    model_id: str, device: str
-) -> HuggingFaceEmbeddings:
-    """Gets a HuggingFace embedding model instance.
-
-    Args:
-        model_id (str): The ID/name of the HuggingFace embedding model to use
-        device (str): The compute device to run the model on (e.g. "cpu", "cuda")
-
-    Returns:
-        HuggingFaceEmbeddings: A configured HuggingFace embeddings model instance
-            with remote code trust enabled and embedding normalization disabled
-    """
-    return HuggingFaceEmbeddings(
-        model_name=model_id,
-        model_kwargs={"device": device, "trust_remote_code": True},
-        encode_kwargs={"normalize_embeddings": False},
+    return OpenAIEmbeddings(
+        api_key=settings.EMBEDDING_API_KEY,
+        base_url=settings.EMBEDDING_BASE_URL,
+        model=model_id or settings.EMBEDDING_MODEL,
+        # Send raw strings instead of tiktoken token arrays. Required for
+        # non-OpenAI backends such as LM Studio, DeepInfra, AvalAI, etc.
+        check_embedding_ctx_length=False,
+        # Small batches: the default is 1000 texts per request, which makes a
+        # local LM Studio server grind for minutes on one request with zero
+        # console output (it looks like a hang).
+        chunk_size=32,
+        # Show a tqdm progress bar per embedding batch so ingestion progress
+        # is visible in the console.
+        show_progress_bar=True,
+        # Fail fast instead of silently retrying for ~10 minutes when the
+        # embedding server is unreachable.
+        timeout=120,
+        max_retries=1,
     )

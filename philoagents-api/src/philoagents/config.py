@@ -18,6 +18,16 @@ class Settings(BaseSettings):
     LLM_MODEL_SUMMARY: str = "gpt-4o-mini"
     LLM_MODEL_CONTEXT_SUMMARY: str = "gpt-4o-mini"
 
+    # --- Embeddings (OpenAI-compatible) Configuration ---
+    # Works with LM Studio (local BGE-M3), DeepInfra, Cloudflare Workers AI,
+    # AvalAI, or any other OpenAI-compatible embeddings endpoint.
+    # IMPORTANT: ingestion and querying must use the SAME model, and
+    # EMBEDDING_DIM must match the model's output size (BGE-M3 = 1024).
+    EMBEDDING_API_KEY: str = "lm-studio"
+    EMBEDDING_BASE_URL: str = "http://host.docker.internal:1234/v1"
+    EMBEDDING_MODEL: str = "text-embedding-bge-m3"
+    EMBEDDING_DIM: int = 1024
+
     # --- Legacy Groq/OpenAI Configuration (kept optional for course tooling) ---
     GROQ_API_KEY: str | None = None
     GROQ_LLM_MODEL: str = "llama-3.3-70b-versatile"
@@ -51,17 +61,33 @@ class Settings(BaseSettings):
     TOTAL_MESSAGES_AFTER_SUMMARY: int = 5
 
     # --- RAG Configuration ---
-    # NOTE (Phase 2): this English-focused model will be replaced by a
-    # configurable multilingual embedder (API or local BGE-M3 / multilingual-e5).
-    RAG_TEXT_EMBEDDING_MODEL_ID: str = "sentence-transformers/all-MiniLM-L6-v2"
-    RAG_TEXT_EMBEDDING_MODEL_DIM: int = 384
     RAG_TOP_K: int = 3
-    RAG_DEVICE: str = "cpu"
+    RAG_DEVICE: str = "cpu"  # kept for compatibility; unused with API embeddings
     RAG_CHUNK_SIZE: int = 256
+    # Similarity threshold above which two chunks are considered duplicates.
+    # Poetry shares many words (radif, refrains, meter vocabulary) without
+    # being duplicated, so keep this high: only near-verbatim chunks are
+    # removed. The upstream default of 0.7 removed most of the poem corpus.
+    RAG_DEDUP_THRESHOLD: float = 0.9
+
+    # --- Ganjoor Configuration ---
+    GANJOOR_API_BASE: str = "https://api.ganjoor.net"
+    GANJOOR_DATA_DIR: Path = Path("data/ganjoor")
+    GANJOOR_MAX_POEMS_PER_POET: int = 150
 
     # --- Paths Configuration ---
     EVALUATION_DATASET_FILE_PATH: Path = Path("data/evaluation_dataset.json")
     EXTRACTION_METADATA_FILE_PATH: Path = Path("data/extraction_metadata.json")
+
+    # Legacy aliases used across the original codebase; they now resolve to
+    # the EMBEDDING_* settings above so untouched files keep working.
+    @property
+    def RAG_TEXT_EMBEDDING_MODEL_ID(self) -> str:
+        return self.EMBEDDING_MODEL
+
+    @property
+    def RAG_TEXT_EMBEDDING_MODEL_DIM(self) -> int:
+        return self.EMBEDDING_DIM
 
 
 settings = Settings()
