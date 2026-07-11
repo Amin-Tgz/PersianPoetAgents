@@ -26,4 +26,15 @@ const config = {
     },
 };
 
-export default new Phaser.Game(config);
+// Make sure Vazirmatn is loaded before Phaser draws any Persian text on the
+// canvas, otherwise the first menu render falls back to a default font.
+const startGame = () => new Phaser.Game(config);
+
+if (document.fonts && document.fonts.load) {
+    Promise.all([
+        document.fonts.load('28px Vazirmatn'),
+        document.fonts.load('bold 28px Vazirmatn')
+    ]).catch(() => {}).finally(startGame);
+} else {
+    startGame();
+}

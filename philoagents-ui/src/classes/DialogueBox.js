@@ -1,56 +1,113 @@
+/**
+ * DOM-based dialogue box (Phase 3).
+ *
+ * The original DialogueBox drew text on the Phaser canvas, which handles
+ * Persian (RTL, joined letters) poorly. This version renders an HTML overlay
+ * on top of the canvas instead:
+ *   - proper RTL layout via CSS `direction: rtl`
+ *   - Vazirmatn font
+ *   - a real <input> element, so Persian typing / IME just works
+ *
+ * Styles live in public/style.css (#dialogue-panel and friends).
+ */
 class DialogueBox {
-    constructor(scene, config = {}) {
+    constructor(scene) {
         this.scene = scene;
         this.awaitingInput = false;
-        
-        // Set default configuration values
-        const {
-            x = 100,
-            y = 500,
-            width = 824,
-            height = 200,
-            backgroundColor = 0x000000,
-            backgroundAlpha = 0.7,
-            borderColor = 0xffffff,
-            borderWidth = 2,
-            textConfig = {
-                font: '24px Arial',
-                fill: '#ffffff',
-                wordWrap: { width: 784 }
-            },
-            depth = 30
-        } = config;
-        
-        // Create background
-        const graphics = scene.add.graphics();
-        graphics.fillStyle(backgroundColor, backgroundAlpha);
-        graphics.fillRect(x, y, width, height);
-        graphics.lineStyle(borderWidth, borderColor);
-        graphics.strokeRect(x, y, width, height);
-        
-        // Create text with padding
-        this.text = scene.add.text(x + 20, y + 20, '', textConfig);
-        
-        // Group elements
-        this.container = scene.add.container(0, 0, [graphics, this.text]);
-        this.container.setDepth(depth);
-        this.container.setScrollFactor(0);
+        this.onSubmit = null; // set by DialogueManager
+        this.onClose = null;  // set by DialogueManager
+
+        // The Game scene can be restarted (e.g. "reset game"), so drop any
+        // panel left over from a previous scene instance.
+        const existing = document.getElementById('dialogue-panel');
+        if (existing) {
+            existing.remove();
+        }
+
+        const gameContainer = document.getElementById('game-container');
+
+        this.panel = document.createElement('div');
+        this.panel.id = 'dialogue-panel';
+
+        this.nameEl = document.createElement('div');
+        this.nameEl.id = 'dialogue-name';
+
+        this.textEl = document.createElement('div');
+        this.textEl.id = 'dialogue-text';
+
+        this.form = document.createElement('form');
+        this.form.id = 'dialogue-form';
+
+        this.input = document.createElement('input');
+        this.input.id = 'dialogue-input';
+        this.input.type = 'text';
+        this.input.dir = 'rtl';
+        this.input.autocomplete = 'off';
+        this.input.placeholder = 'پرسش خود را بنویسید و Enter را بزنید…';
+
+        this.form.appendChild(this.input);
+        this.panel.appendChild(this.nameEl);
+        this.panel.appendChild(this.textEl);
+        this.panel.appendChild(this.form);
+        gameContainer.appendChild(this.panel);
+
+        this.form.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const message = this.input.value.trim();
+            if (message && this.onSubmit) {
+                this.onSubmit(message);
+            }
+        });
+
+        this.input.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && this.onClose) {
+                this.onClose();
+            }
+            // Keep game keys (SPACE, arrows, ESC) from leaking into Phaser
+            // while the player is typing.
+            event.stopPropagation();
+        });
+
         this.hide();
     }
-    
+
+    setName(name) {
+        this.nameEl.textContent = name;
+    }
+
     show(message, awaitInput = false) {
-        this.text.setText(message);
-        this.container.setVisible(true);
+        this.textEl.textContent = message;
+        this.panel.style.display = 'flex';
         this.awaitingInput = awaitInput;
     }
-    
-    hide() {
-        this.container.setVisible(false);
-        this.awaitingInput = false;
+
+    setText(message) {
+        this.textEl.textContent = message;
+        // Keep the newest streamed line visible.
+        this.textEl.scrollTop = this.textEl.scrollHeight;
     }
-    
+
+    clearInput() {
+        this.input.value = '';
+    }
+
+    focusInput() {
+        this.input.removeAttribute('disabled');
+        this.input.focus();
+    }
+
+    disableInput() {
+        this.input.setAttribute('disabled', 'disabled');
+    }
+
+    hide() {
+        this.panel.style.display = 'none';
+        this.awaitingInput = false;
+        this.input.value = '';
+    }
+
     isVisible() {
-        return this.container.visible;
+        return this.panel.style.display !== 'none';
     }
 
     isAwaitingInput() {
@@ -58,4 +115,4 @@ class DialogueBox {
     }
 }
 
-export default DialogueBox; 
+export default DialogueBox;

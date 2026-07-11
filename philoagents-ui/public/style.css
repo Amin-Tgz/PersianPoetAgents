@@ -1,15 +1,79 @@
-body {
+* {
     margin: 0;
     padding: 0;
-    color: rgba(255, 255, 255, 0.87);
-    background-color: #000000;
+}
+
+body {
+    background: #000000;
+    font-family: 'Vazirmatn', Arial, sans-serif;
 }
 
 #app {
-    width: 100%;
-    height: 100vh;
-    overflow: hidden;
     display: flex;
     justify-content: center;
     align-items: center;
+    height: 100vh;
+}
+
+#game-container {
+    position: relative;
+}
+
+/* ---- Persian RTL dialogue panel (DOM overlay, Phase 3) ---- */
+
+#dialogue-panel {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 24px;
+    width: min(860px, 92%);
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.82);
+    border: 2px solid #ffffff;
+    border-radius: 10px;
+    padding: 14px 18px;
+    direction: rtl;
+    z-index: 30;
+    color: #ffffff;
+    font-family: 'Vazirmatn', Arial, sans-serif;
+}
+
+#dialogue-name {
+    font-weight: 700;
+    color: #ffd166;
+    font-size: 15px;
+}
+
+#dialogue-text {
+    min-height: 72px;
+    max-height: 170px;
+    overflow-y: auto;
+    line-height: 1.9;
+    font-size: 17px;
+    white-space: pre-wrap;
+    text-align: right;
+}
+
+#dialogue-input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #888888;
+    border-radius: 8px;
+    background: #111111;
+    color: #ffffff;
+    padding: 9px 12px;
+    font-size: 16px;
+    font-family: inherit;
+    direction: rtl;
+    outline: none;
+}
+
+#dialogue-input:focus {
+    border-color: #ffd166;
+}
+
+#dialogue-input:disabled {
+    opacity: 0.5;
 }
