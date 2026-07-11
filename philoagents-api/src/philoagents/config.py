@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     TOTAL_MESSAGES_AFTER_SUMMARY: int = 5
 
     # --- RAG Configuration ---
-    RAG_TOP_K: int = 3
+    RAG_TOP_K: int = 5
     RAG_DEVICE: str = "cpu"  # kept for compatibility; unused with API embeddings
     RAG_CHUNK_SIZE: int = 256
     # Similarity threshold above which two chunks are considered duplicates.
