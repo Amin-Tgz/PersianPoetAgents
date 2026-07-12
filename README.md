@@ -1,383 +1,156 @@
 <div align="center">
-  <h1>PhiloAgents Course</h1>
-  <h3>Learn how to build an AI-powered game simulation engine to impersonate popular philosophers.</h3>
-  <p class="tagline">Open-source course by <a href="https://theneuralmaze.substack.com/">The Neural Maze</a> and <a href="https://decodingml.substack.com">Decoding ML</a> in collaboration with </br> <a href="https://rebrand.ly/philoagents-mongodb">MongoDB</a>, <a href="https://rebrand.ly/philoagents-opik">Opik</a> and <a href="https://rebrand.ly/philoagents-groq">Groq</a>.</p>
+  <h1>شاعران پارسی — PersianPoetAgents</h1>
+  <p>An AI-powered game where you walk up to the great Persian poets and talk to them — in Persian, with real verses from their own divans.</p>
+  <p>A fork of <a href="https://github.com/neural-maze/philoagents-course">PhiloAgents</a> (The Neural Maze &amp; Decoding ML), rebuilt for Persian poetry.</p>
 </div>
 
-</br>
+---
 
-<p align="center">
-    <img src="static/diagrams/system_architecture.png" alt="Architecture" width="600">
-</p>
+## 🎭 About
 
-## 📖 About This Course
+PersianPoetAgents turns the PhiloAgents simulation engine into a Persian poetry experience. Instead of debating Plato and Aristotle, you wander a 2D town and converse — fully in Persian — with seven legendary Persian-language poets. Each poet is an agentic RAG system (LangGraph + MongoDB) whose long-term memory is populated with their **actual poems from [Ganjoor](https://ganjoor.net)** and their Persian Wikipedia biography, so when a poet quotes a بیت, it is a real one — retrieved, not hallucinated.
 
-Ever dreamed of building your own AI-powered game? Get ready for an exciting journey where we'll combine the thrill of game development with cutting-edge AI technology!
+### The poets
 
-Welcome to **PhiloAgents** (a team-up between [Decoding ML](https://decodingml.substack.com) and [The Neural Maze](https://theneuralmaze.substack.com)) - where ancient philosophy meets modern AI. In this hands-on course, you'll build an AI agent simulation engine that brings historical philosophers to life in an interactive game environment. Imagine having deep conversations with Plato, debating ethics with Aristotle, or discussing artificial intelligence with Turing himself!
+| ID | Poet | Era | Corpus |
+|----|------|-----|--------|
+| `saadi` | سعدی | 13th c. | Ganjoor + fa.wikipedia |
+| `hafez` | حافظ | 14th c. | Ganjoor + fa.wikipedia |
+| `molavi` | مولوی (رومی) | 13th c. | Ganjoor + fa.wikipedia |
+| `saeb` | صائب تبریزی | 17th c. | Ganjoor + fa.wikipedia |
+| `bidel` | بیدل دهلوی | 17–18th c. | Ganjoor + fa.wikipedia |
+| `iqbal` | اقبال لاهوری | 19–20th c. | Ganjoor + fa.wikipedia |
+| `rahi` | رهی معیری | 20th c. | Ganjoor + fa.wikipedia |
 
-**In 6 comprehensive modules**, you'll learn how to:
-- Create AI agents that authentically embody historical philosophers
-- Master building agentic applications
-- Architect and implement a production-ready RAG, LLM and LLMOps system from scratch
+## 🔀 What changed vs. the original course
 
-### 🎮 The PhiloAgents Experience. What You'll Do:
+**LLM — provider-agnostic (no Groq lock-in).** `chains.py` uses `ChatOpenAI` against any OpenAI-compatible gateway. Configure `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` in `.env` (tested with [AvalAI](https://avalai.ir); works with OpenAI, OpenRouter, Groq's OpenAI-compatible endpoint, LM Studio, etc.).
 
-Transform static NPCs into dynamic AI personalities that:
-- Build a game character simulation engine, powered by AI agents and LLMs, that impersonates philosophers from our history, such as Plato, Aristotle and Turing.
-- Design production-ready agentic RAG systems.
-- Ship the agent as a RESTful API.
-- Apply LLMOps and software engineering best practices.
-- Use industry tools: Groq, MongoDB, Opik, LangGraph, LangChain, FastAPI, Websockets, Docker, etc.
+**Embeddings — multilingual, swappable.** Sentence-transformers were replaced with an OpenAI-compatible embeddings client (`EMBEDDING_BASE_URL`, `EMBEDDING_MODEL`, `EMBEDDING_DIM`). Default setup: **BGE-M3 (1024-dim) served locally by LM Studio** on port 9966. Ingestion and querying must use the same model.
 
-After completing this course, you'll have access to your own agentic simulation engine, as seen in the video below:
+**Dataset — Ganjoor instead of Stanford Encyclopedia.** `tools/download_ganjoor.py` downloads each poet's poems from the Ganjoor API into `data/ganjoor/<poet_id>.json` (default 150 poems per poet). `extract.py` loads one document per poem (title + verses) plus the poet's Persian Wikipedia article fetched via the MediaWiki API.
 
-<video src="https://github.com/user-attachments/assets/aedc041e-00ed-42ce-99f2-24ce74847e7a"/></video>
+**RAG tuned for poetry, not prose:**
+- The retrieval tool is `retrieve_poet_verses`, and both its description and the character card force the model to call it before quoting any verse — poets may only quote lines that appear verbatim in retrieved chunks, and must not guess ghazal numbers.
+- The upstream `summarize_context_node` (which compressed retrieved documents into a <50-word summary) was **removed from the graph** — it destroyed exact verses. Retrieved chunks now reach the poet verbatim.
+- Dedup threshold raised from 0.7 to **0.9** (`RAG_DEDUP_THRESHOLD`): poems share meter/radif vocabulary without being duplicates; the upstream default deleted most of the corpus.
 
--------
+**Prompts — fully Persian.** Character cards, conversation summaries, context prompts, and the evaluation-dataset generator are all rewritten in Persian, with anti-hallucination rules (never invent a بیت; admit when a verse is not in the retrieved دیوان).
 
-<table style="border-collapse: collapse; border: none;">
-  <tr style="border: none;">
-    <td width="20%" style="border: none;">
-      <a href="https://theneuralmaze.substack.com/" aria-label="The Neural Maze">
-        <img src="https://avatars.githubusercontent.com/u/151655127?s=400&u=2fff53e8c195ac155e5c8ee65c6ba683a72e655f&v=4" alt="The Neural Maze Logo" width="150"/>
-      </a>
-    </td>
-    <td width="80%" style="border: none;">
-      <div>
-        <h2>📬 Stay Updated</h2>
-        <p><b><a href="https://theneuralmaze.substack.com/">Join The Neural Maze</a></b> and learn to build AI Systems that actually work, from principles to production. Every Wednesday, directly to your inbox. Don't miss out!
-</p>
-      </div>
-    </td>
-  </tr>
-</table>
+**UI — Persian and RTL.**
+- 7 poet NPCs with Persian name labels (character sprites reused from the original game for now).
+- Dialogue is a DOM overlay with a native RTL `<input>` — real Persian typing and correct letter shaping (the original drew text on the Phaser canvas, which breaks Persian).
+- [Vazirmatn](https://github.com/rastikerdar/vazirmatn) font everywhere; Persian main menu, help, and pause menu.
+- Replies stream over the original WebSocket API.
 
-<p align="center">
-  <a href="https://theneuralmaze.substack.com/">
-    <img src="https://img.shields.io/static/v1?label&logo=substack&message=Subscribe%20Now&style=for-the-badge&color=black&scale=2" alt="Subscribe Now" height="40">
-  </a>
-</p>
+**Windows-friendly tooling.** All helper scripts are bash scripts designed for **Git Bash** on Windows (`MSYS_NO_PATHCONV=1` handled internally).
 
-<table style="border-collapse: collapse; border: none;">
-  <tr style="border: none;">
-    <td width="20%" style="border: none;">
-      <a href="https://decodingml.substack.com/" aria-label="Decoding ML">
-        <img src="https://github.com/user-attachments/assets/f2f2f9c0-54b7-4ae3-bf8d-23a359c86982" alt="Decoding ML Logo" width="150"/>
-      </a>
-    </td>
-    <td width="80%" style="border: none;">
-      <div>
-        <h2>📬 Stay Updated</h2>
-        <p><b><a href="https://decodingml.substack.com/">Join Decoding ML</a></b> for proven content on designing, coding, and deploying production-grade AI systems with software engineering and MLOps best practices to help you ship AI applications. Every week, straight to your inbox.</p>
-      </div>
-    </td>
-  </tr>
-</table>
+**Observability.** [Opik](https://www.comet.com/site/products/opik/) tracing/monitoring is kept from the original course (project: `persianpoetagents`).
 
-<p align="center">
-  <a href="https://decodingml.substack.com/">
-    <img src="https://img.shields.io/static/v1?label&logo=substack&message=Subscribe%20Now&style=for-the-badge&color=black&scale=2" alt="Subscribe Now" height="40">
-  </a>
-</p>
-
-## 🎯 What You'll Learn
-
-While building the PhiloAgents simulation engine, you'll master:
-
-- Building intelligent agents with LangGraph
-  - Agent development and orchestration
-  - RAG agentic communication patterns
-  - Character impersonation through prompt engineering (Plato, Aristotle, Turing)
-
-- Creating production-grade RAG systems
-  - Vector database integration
-  - Knowledge base creation from Wikipedia and Stanford Encyclopedia
-  - Advanced information retrieval
-
-- Engineering the system architecture
-  - End-to-end design (UI → Backend → Agent → Monitoring)
-  - RESTful API deployment with FastAPI and Docker
-  - Real-time communication via WebSockets
-
-- Implementing advanced agent features
-  - Short and long-term memory with MongoDB
-  - Dynamic conversation handling
-  - Real-time response generation
-
-- Mastering industry tools and practices
-  - Integration with Groq, MongoDB, Opik
-  - Modern Python tooling (uv, ruff)
-  - LangChain and LangGraph ecosystems
-  - Leveraging LLMs on GroqCloud for high-speed inference
-
-- Applying LLMOps best practices
-  - Automated agent evaluation
-  - Prompt monitoring and versioning
-  - Evaluation dataset generation
-
-🥷 By the end, you'll be a ninja in production-ready AI agent development!
-
-## 👥 Who Should Join?
-
-**This course is tailored for people who learn by building.** After completing the course, you will have your own code template and enough inspiration to develop your personal agentic applications.
-
-| Target Audience | Why Join? |
-|-----------------|-----------|
-| ML/AI Engineers | Build production-ready agentic applications (beyond Notebook tutorials). |
-| Data/Software Engineers | Architect end-to-end agentic applications. |
-| Data Scientists | Implement production agentic systems using LLMOps and SWE best practices. |
-
-## 🎓 Prerequisites
-
-| Category | Requirements |
-|----------|-------------|
-| **Skills** | - Python (Beginner) <br/> - Machine Learning, LLMs, RAG (Beginner) |
-| **Hardware** | Modern laptop/PC (We will use Groq and OpenAI APIs to call our LLMs) |
-| **Level** | Beginner to Intermediate |
-
-
-## 💰 Cost Structure
-
-**The course is open-source and completely free!** You can run the simulation engine without any of the advanced LLMOps features at 0 cost.
-
-If you choose to run the entire system end-to-end (this is optional), the maximum cost for cloud tools is approximately $1:
-
-| Service | Estimated Maximum Cost |
-|---------|------------------------|
-| Groq's API | $0 |
-| OpenAI's API (Optional) | ~$1 |
-
-In Module 5 (optional module), we use OpenAI's API as an LLM-as-a-judge to evaluate our agents. In the rest of the course, we use Groq's API, which offers a free tier.
-
-**Just reading the materials? It's all free!**
-
-## 🥂 Open-source Course: Participation is Open and Free
-
-As an open-source course, you don't have to enroll. Everything is self-paced, free of charge, and with its resources freely accessible at (video and articles are complementary - go through both for the whole picture):
-- **code**: this GitHub repository
-- **videos**: [The Neural Maze](https://www.youtube.com/@TheNeuralMaze)
-- **articles**: [Decoding ML](https://decodingml.substack.com)
-
-## 📚 Course Outline
-
-This **open-source course consists of 6 comprehensive modules** covering theory, system design, and hands-on implementation.
-
-[Read this](https://decodingml.substack.com/p/from-0-to-pro-ai-agents-roadmap) for a quick walkthrough of what you will learn in each module.
-
-Our recommendation for getting the most out of this course:
-1. Clone the repository.
-2. Read the materials (video and articles are complementary - go through both for the whole picture)
-3. Set up the code and run it to replicate our results.
-4. Go deeper into the code to understand the details of the implementation.
-
-
-| Module | Written Lesson | Video Lesson | Description | Running the code |
-|--------|----------------|--------------|-------------|------------------|
-| <div align="center">0</div>  | <a href="https://decodingml.substack.com/p/from-0-to-pro-ai-agents-roadmap"><img src="static/diagrams/episode_1_play.png" alt="Diagram 0" width="300"></a> | <div align="center">**No Video**</div> | Quick walkthrough over what you will learn in each module. | <div align="center">**No code**</div> |
-| <div align="center">1</div>  | <a href="https://decodingml.substack.com/p/build-your-gaming-simulation-ai-agent"><img src="static/diagrams/episode_1_play.png" alt="Diagram 1" width="300"></a> | <a href="https://youtu.be/vbhShB70vFE?si=tK0hRQbEqlZMwFMm"><img src="static/thumbnails/episode_1_play.png" alt="Thumbnail 1" width="400"></a> | Architect your gaming simulation AI PhiloAgent. | <div align="center">**No code**</div> |
-| <div align="center">2</div> | <a href="https://decodingml.substack.com/p/your-first-production-ready-rag-agent"><img src="static/diagrams/episode_2_play.png" alt="Diagram 2" width="300"></a> | <a href="https://youtu.be/5fqkdiTP5Xw?si=Y1erl41qNSYlSaYx"><img src="static/thumbnails/episode_2_play.png" alt="Thumbnail 2" width="400"></a> | Building the PhiloAgent in LangGraph using agentic RAG. | [philoagents-api](philoagents-api) |
-| <div align="center">3</div> | <a href="https://decodingml.substack.com/p/memory-the-secret-sauce-of-ai-agents"><img src="static/diagrams/episode_3_play.png" alt="Diagram 3" width="300"></a> | <a href="https://youtu.be/xDouz4WNHV0?si=t2Wk179LQnSDY1iL"><img src="static/thumbnails/episode_3_play.png" alt="Thumbnail 3" width="400"></a> | Wrapping up our agentic RAG layer by implementing the short-term and long-term memory components. | [philoagents-api](philoagents-api) |
-| <div align="center">4</div> | <a href="https://decodingml.substack.com/p/deploying-agents-as-real-time-apis"><img src="static/diagrams/episode_4_play.png" alt="Diagram 4" width="300"></a>  | <a href="https://youtu.be/svABzOASrzg?si=nylMpFm0nozPNSbi"><img src="static/thumbnails/episode_4_play.png" alt="Thumbnail 4" width="400"></a> | Expose the agent as a RESTful API (FastAPI + Websockets). | [philoagents-api](philoagents-api) |
-| <div align="center">5</div> | <a href="https://decodingml.substack.com/p/observability-for-rag-agents"><img src="static/diagrams/episode_5_play.png" alt="Diagram 5" width="300"></a>  | <a href="https://youtu.be/Yy0szt5OlNI?si=otYpqM_BY2gxdxnS"><img src="static/thumbnails/episode_5_play.png" alt="Thumbnail 5" width="400"></a> | Observability for RAG agents (part of LLMOps): evaluating agents, prompt monitoring, prompt versioning, etc. | [philoagents-api](philoagents-api) |
-| <div align="center">6</div> | <a href="https://decodingml.substack.com/p/engineer-python-projects-like-a-pro"><img src="static/diagrams/episode_6_play.png" alt="Diagram 6" width="300"></a>   | <div align="center">**No Video**</div> | Structuring Python projects like a PRO. Modern Python tooling. Docker setup. | [philoagents-api](philoagents-api) |
-
-And if you're feeling extra brave, there's also a 2h 30m video course where we have merged all the video lessons into one.
-
-<p align="center">
-    <a href="https://youtu.be/pg1Sn9rsFak?si=bKMdL-EbaMb90PT3"><img src="static/thumbnails/full_course_play.png" alt="PhiloAgents Full Course" width="500"></a>
-</p>
-
-
-------
-
-<table style="border-collapse: collapse; border: none;">
-  <tr style="border: none;">
-    <td width="20%" style="border: none;">
-      <a href="https://theneuralmaze.substack.com/" aria-label="The Neural Maze">
-        <img src="https://avatars.githubusercontent.com/u/151655127?s=400&u=2fff53e8c195ac155e5c8ee65c6ba683a72e655f&v=4" alt="The Neural Maze Logo" width="150"/>
-      </a>
-    </td>
-    <td width="80%" style="border: none;">
-      <div>
-        <h2>📬 Stay Updated</h2>
-        <p><b><a href="https://theneuralmaze.substack.com/">Join The Neural Maze</a></b> and learn to build AI Systems that actually work, from principles to production. Every Wednesday, directly to your inbox. Don't miss out!
-</p>
-      </div>
-    </td>
-  </tr>
-</table>
-
-<p align="center">
-  <a href="https://theneuralmaze.substack.com/">
-    <img src="https://img.shields.io/static/v1?label&logo=substack&message=Subscribe%20Now&style=for-the-badge&color=black&scale=2" alt="Subscribe Now" height="40">
-  </a>
-</p>
-
-<table style="border-collapse: collapse; border: none;">
-  <tr style="border: none;">
-    <td width="20%" style="border: none;">
-      <a href="https://decodingml.substack.com/" aria-label="Decoding ML">
-        <img src="https://github.com/user-attachments/assets/f2f2f9c0-54b7-4ae3-bf8d-23a359c86982" alt="Decoding ML Logo" width="150"/>
-      </a>
-    </td>
-    <td width="80%" style="border: none;">
-      <div>
-        <h2>📬 Stay Updated</h2>
-        <p><b><a href="https://decodingml.substack.com/">Join Decoding ML</a></b> for proven content on designing, coding, and deploying production-grade AI systems with software engineering and MLOps best practices to help you ship AI applications. Every week, straight to your inbox.</p>
-      </div>
-    </td>
-  </tr>
-</table>
-
-<p align="center">
-  <a href="https://decodingml.substack.com/">
-    <img src="https://img.shields.io/static/v1?label&logo=substack&message=Subscribe%20Now&style=for-the-badge&color=black&scale=2" alt="Subscribe Now" height="40">
-  </a>
-</p>
-
-## 🏗️ Project Structure
-
-While building the PhiloAgents simulation engine, we will rely on two separate applications:
+## 🏗️ Project structure
 
 ```bash
 .
-├── philoagents-api/     # Backend API containing the PhiloAgents simulation engine (Python)
-└── philoagents-ui/      # Frontend UI for the game (Node)
+├── philoagents-api/     # Backend: LangGraph agents, RAG, FastAPI + WebSocket (Python)
+│   ├── data/ganjoor/    # Downloaded poem corpora (one JSON per poet)
+│   ├── src/philoagents/ # Agent workflow, RAG, prompts, domain (poets)
+│   └── tools/           # download_ganjoor.py, create_long_term_memory.py, call_agent.py …
+├── philoagents-ui/      # Frontend: Phaser 3 game, Persian RTL UI (Node)
+└── scripts/             # Git Bash helper scripts (download corpus, ingest, test agents)
 ```
 
-The course will focus only on the `philoagents-api` application that contains all the agent simulation logic. The `philoagents-ui` application is used to play the game.
+(Directory names keep the original `philoagents-*` naming so upstream diffs stay easy to follow.)
 
-## 👔 Dataset
+## 🚀 Getting started
 
-To impersonate our philosopher agents with real-world knowledge, we will populate their long-term memory with data from:
-- Wikipedia
-- The Stanford Encyclopedia of Philosophy
+### Prerequisites
 
-You don't have to download anything explicitly. While populating the long-term memory, the `philoagents-api` application will download the data from the internet automatically.
+- Docker Desktop
+- An API key for any OpenAI-compatible LLM provider (e.g. AvalAI / OpenAI / OpenRouter)
+- [LM Studio](https://lmstudio.ai) running an embeddings server: load `text-embedding-bge-m3` and serve it on port **9966** (or point `EMBEDDING_BASE_URL` at any OpenAI-compatible embeddings endpoint)
+- On Windows: Git Bash (comes with Git for Windows)
 
-## 🚀 Getting Started
+### 1. Configure `.env`
 
-Find detailed setup and usage instructions in the [INSTALL_AND_USAGE.md](INSTALL_AND_USAGE.md) file.
+Create `philoagents-api/.env` (note: docker's env-file parser does **not** strip inline comments — keep values clean):
 
-**Pro tip:** Read the accompanying articles first for a better understanding of the system you'll build.
+```env
+# --- LLM (any OpenAI-compatible provider) ---
+LLM_API_KEY=sk-...
+LLM_BASE_URL=https://api.avalai.ir/v1
+LLM_MODEL=gpt-5.4-mini
+LLM_MODEL_SUMMARY=gpt-5.4-mini
+LLM_MODEL_CONTEXT_SUMMARY=gpt-5.4-mini
 
-## 💡 Questions and Troubleshooting
+# --- Embeddings (must match between ingestion and querying) ---
+EMBEDDING_API_KEY=lm-studio
+EMBEDDING_BASE_URL=http://host.docker.internal:9966/v1
+EMBEDDING_MODEL=text-embedding-bge-m3
+EMBEDDING_DIM=1024
 
-Have questions or running into issues? We're here to help!
+# --- RAG ---
+RAG_TOP_K=5
+RAG_CHUNK_SIZE=256
+RAG_DEDUP_THRESHOLD=0.9
 
-Open a [GitHub issue](https://github.com/neural-maze/philoagents-course/issues) for:
-- Questions about the course material
-- Technical troubleshooting
-- Clarification on concepts
+# --- Opik (optional, for tracing/monitoring) ---
+COMET_API_KEY=...
+COMET_PROJECT=persianpoetagents
+```
 
-## 🥂 Contributing
+### 2. Start the stack
 
-As an open-source course, we may not be able to fix all the bugs that arise.
+```bash
+docker compose up -d --build     # MongoDB + API (port 8000) + UI (port 8080)
+```
 
-If you find any bugs and know how to fix them, support future readers by contributing to this course with your bug fix.
+### 3. Build the poets' long-term memory (first run only)
 
-You can always contribute by:
-- Forking the repository
-- Fixing the bug
-- Creating a pull request
+```bash
+# Download poems from Ganjoor (150 per poet by default)
+bash scripts/download-ganjoor.sh
 
-📍 [For more details, see the contributing guide.](CONTRIBUTING.md)
+# Embed + ingest into MongoDB (requires the embeddings server to be running)
+bash scripts/create-long-term-memory.sh
+```
 
-We will deeply appreciate your support for the AI community and future readers 🤗
+### 4. Test a poet from the terminal
 
-## Sponsors
+```bash
+bash scripts/call-agent.sh hafez "دیوان تو چه نام دارد؟ درباره غزل‌هایت برایم بگو."
+```
 
-<div align="center">
-  <table style="border-collapse: collapse; border: none;">
-    <tr style="border: none;">
-      <td align="center" style="border: none; padding: 20px;">
-        <a href="https://rebrand.ly/philoagents-mongodb" target="_blank">
-          <img src="static/sponsors/mongo.png" width="200" style="max-height: 45px; width: auto;" alt="MongoDB">
-        </a>
-      </td>
-      <td align="center" style="border: none; padding: 20px;">
-        <a href="https://rebrand.ly/philoagents-opik" target="_blank">
-          <img src="static/sponsors/opik.png" width="200" style="max-height: 45px; width: auto;" alt="Opik">
-        </a>
-      </td>
-      <td align="center" style="border: none; padding: 20px;">
-        <a href="https://rebrand.ly/philoagents-groq" target="_blank">
-          <img src="static/sponsors/groq.png" width="200" style="max-height: 45px; width: auto;" alt="Groq">
-        </a>
-      </td>
-    </tr>
-  </table>
-</div>
+### 5. Play
 
-## Core Contributors
+Open [http://localhost:8080](http://localhost:8080) — walk with the arrow keys, press **SPACE** near a poet to talk, type in Persian, **Enter** to send, **ESC** to close.
 
-<table>
-  <tr>
-    <td align="center">
-      <a href="https://github.com/iusztinpaul">
-        <img src="https://github.com/iusztinpaul.png" width="100px;" alt="Paul Iusztin"/><br />
-        <sub><b>Paul Iusztin</b></sub>
-      </a><br />
-      <sub>AI/ML Engineer</sub>
-    </td>
-    <td align="center">
-      <a href="https://github.com/MichaelisTrofficus">
-        <img src="https://github.com/MichaelisTrofficus.png" width="100px;" alt="Miguel Otero Pedrido"/><br />
-        <sub><b>Miguel Otero Pedrido</b></sub>
-      </a><br />
-      <sub>AI/ML Engineer</sub>
-    </td>
-  </tr>
-</table>
+## 🛠️ Useful scripts (Git Bash)
+
+| Script | What it does |
+|--------|--------------|
+| `scripts/download-ganjoor.sh [--poet ID] [--max-poems N]` | Download poem corpora from Ganjoor |
+| `scripts/create-long-term-memory.sh` | Chunk, embed, dedup, and ingest corpora into MongoDB |
+| `scripts/call-agent.sh <poet_id> "<question>"` | Ask a poet a question from the CLI |
+
+## ⚠️ Known issues
+
+- **Opik `token_usage` warnings** in logs (`TypeError: 'NoneType' …`): cosmetic. Some providers don't return token usage in streaming responses; traces still log fine.
+- **Ghazal numbers can be wrong.** Poem titles are only prepended to the first chunk of each poem, so a poet may quote real verses but cite the wrong غزل number. Planned fix: prepend the title to every chunk at ingestion time.
+- **Slow first token with reasoning models.** The model "thinks" and does a retrieval round trip before any text streams; non-reasoning models feel snappier.
+
+## 🗺️ Roadmap
+
+- **Evaluation:** regenerate the evaluation dataset in Persian (biography, works, famous verses, style) and add a verse-authenticity metric in Opik.
+- **Corpus:** more poems per poet (especially صائب), poem titles on every chunk, poem/bio chunk tagging.
+- **Deployment:** hosted BGE-M3 embeddings (DeepInfra / Cloudflare Workers AI), MongoDB Atlas M0, backend on a free cloud tier, UI on GitHub Pages.
+- **Art:** custom sprites for each poet (currently reusing the original character atlases).
+
+## 🙏 Credits
+
+Built on the excellent open-source [PhiloAgents course](https://github.com/neural-maze/philoagents-course) by [The Neural Maze](https://theneuralmaze.substack.com) and [Decoding ML](https://decodingml.substack.com), in collaboration with MongoDB, Opik and Groq. Go take the course — it teaches everything this fork is built on.
+
+Poetry data from [Ganjoor](https://ganjoor.net) (گنجور) and [Persian Wikipedia](https://fa.wikipedia.org). Persian font: [Vazirmatn](https://github.com/rastikerdar/vazirmatn) by Saber Rastikerdar.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-------
-
-<table style="border-collapse: collapse; border: none;">
-  <tr style="border: none;">
-    <td width="20%" style="border: none;">
-      <a href="https://theneuralmaze.substack.com/" aria-label="The Neural Maze">
-        <img src="https://avatars.githubusercontent.com/u/151655127?s=400&u=2fff53e8c195ac155e5c8ee65c6ba683a72e655f&v=4" alt="The Neural Maze Logo" width="150"/>
-      </a>
-    </td>
-    <td width="80%" style="border: none;">
-      <div>
-        <h2>📬 Stay Updated</h2>
-        <p><b><a href="https://theneuralmaze.substack.com/">Join The Neural Maze</a></b> and learn to build AI Systems that actually work, from principles to production. Every Wednesday, directly to your inbox. Don't miss out!
-</p>
-      </div>
-    </td>
-  </tr>
-</table>
-
-<p align="center">
-  <a href="https://theneuralmaze.substack.com/">
-    <img src="https://img.shields.io/static/v1?label&logo=substack&message=Subscribe%20Now&style=for-the-badge&color=black&scale=2" alt="Subscribe Now" height="40">
-  </a>
-</p>
-
-<table style="border-collapse: collapse; border: none;">
-  <tr style="border: none;">
-    <td width="20%" style="border: none;">
-      <a href="https://decodingml.substack.com/" aria-label="Decoding ML">
-        <img src="https://github.com/user-attachments/assets/f2f2f9c0-54b7-4ae3-bf8d-23a359c86982" alt="Decoding ML Logo" width="150"/>
-      </a>
-    </td>
-    <td width="80%" style="border: none;">
-      <div>
-        <h2>📬 Stay Updated</h2>
-        <p><b><a href="https://decodingml.substack.com/">Join Decoding ML</a></b> for proven content on designing, coding, and deploying production-grade AI systems with software engineering and MLOps best practices to help you ship AI applications. Every week, straight to your inbox.</p>
-      </div>
-    </td>
-  </tr>
-</table>
-
-<p align="center">
-  <a href="https://decodingml.substack.com/">
-    <img src="https://img.shields.io/static/v1?label&logo=substack&message=Subscribe%20Now&style=for-the-badge&color=black&scale=2" alt="Subscribe Now" height="40">
-  </a>
-</p>
+MIT — see [LICENSE](LICENSE). Same license as the original course.
